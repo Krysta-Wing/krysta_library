@@ -43,10 +43,11 @@ class ModelReport:
                 with open(config_filename, "r") as f:
                     user_config = yaml.safe_load(f)
                     if user_config:
-                        print("[✓] Krysta-Wing Engine: Loaded user configurations from kwing_config.yaml")
+                        # Clean, industrial CLI layout
+                        print("[INFO] krysta-wing :: loaded runtime profile from kwing_config.yaml")
                         return user_config
             except Exception as e:
-                print(f"⚠️ Warning: Failed to parse kwing_config.yaml ({e}). Falling back to defaults.")
+                print(f"[WARN] krysta-wing :: configuration parsing failed ({e}). using defaults.")
                 
         return default_config
 
@@ -136,7 +137,7 @@ class ModelReport:
             target_path = os.path.join(self.artifacts_dir, filename)
             save_analysis_plot(data, target_path, title)
             self.logged_artifacts.append((title, f"artifacts/{filename}"))
-            print(f"[✓] Model-Agnostic Engine: Logged Vision Heatmap -> {filename}")
+            print(f"[CORE] krysta-wing :: registered vision artifact ↳ {filename}")
 
         # Route 2: Text Token Streams
         elif artifact_type == "tokens":
@@ -153,13 +154,13 @@ class ModelReport:
             text_summary = f"#### Custom Token Stream Analysis: {title}\n"
             text_summary += f"`\"{sample_phrase}\"`\n\n"
             if low_conf_words:
-                text_summary += f"⚠️ **Low Confidence Anomaly Tokens (Below {int(threshold*100)}%):**\n"
+                text_summary += f"**Low Confidence Anomaly Tokens (Below {int(threshold*100)}%):**\n"
                 text_summary += f"{', '.join(low_conf_words)}\n\n"
             else:
-                text_summary += "✓ **All tokens parsed securely above target boundary criteria.**\n\n"
+                text_summary += "**All tokens parsed securely above target boundary criteria.**\n\n"
             
             self.logged_text_blocks.append(text_summary)
-            print(f"[✓] Model-Agnostic Engine: Logged Token Stream Extraction")
+            print(f"[CORE] krysta-wing :: registered text token anomalies")
 
         
         elif artifact_type == "audio":
@@ -178,6 +179,20 @@ class ModelReport:
     
         current_dir = os.path.dirname(os.path.abspath(__file__))
         template_path = os.path.join(current_dir, "templates", "base_report.md")
+
+        # Run statistical anomaly checks before rendering the template
+        alerts = self._compute_regression_analysis()
+        alert_markdown_block = ""
+        if alerts:
+            alert_markdown_block = (
+                "### RUNTIME TELEMETRY ANOMALIES\n"
+                "> **NOTICE:** The statistical tracking engine flagged performance metrics "
+                "exceeding expected variance limits against historical baselines.\n>\n"
+            )
+            for alert in alerts:
+                # Remove emojis from individual alert strings if you have them inside _compute_regression_analysis
+                alert_markdown_block += f"> * {alert.replace('⚠️ ', '').replace('🚨 ', '')}\n"
+            alert_markdown_block += "\n---\n"
         
         with open(template_path, "r") as f:
             raw_template = f.read()
@@ -214,7 +229,9 @@ class ModelReport:
             latency=self.metrics.get("latency", 0.0),
             vram=self.metrics.get("vram", 0.0),
             loss=self.metrics.get("loss", 0.0),
-            modality_specific_content=modality_content
+            modality_specific_content=modality_content,
+            regression_alerts=alert_markdown_block
+            
         )
         
         
@@ -222,4 +239,79 @@ class ModelReport:
         with open(output_file_path, "w", encoding="utf-8") as f:
             f.write(rendered_md)
             
-        print(f"[✓] Report successfully compiled at: {output_file_path}")
+        print(f"[SUCCESS] krysta-wing :: consolidated report exported to {output_file_path}")
+
+    def _compute_regression_analysis(self):
+        """
+        Saves run metrics locally and runs a 2-sigma anomaly verification pass 
+        against historical evaluation baselines.
+        """
+        import json
+        history_file = ".kwing_history.json"
+        
+        # Pull current performance parameters cleanly
+        current_latency = self.metrics.get("latency", 0.0)
+        current_vram = self.metrics.get("vram", 0.0)
+        
+        # Load historical benchmarks state
+        history_data = []
+        if os.path.exists(history_file):
+            try:
+                with open(history_file, "r") as f:
+                    history_data = json.load(f)
+            except Exception:
+                history_data = []
+
+        regression_alerts = []
+
+        # Run statistical checks only if we have a viable baseline (minimum 3 historical runs)
+        if len(history_data) >= 3:
+            import math
+            
+            latencies = [run["latency"] for run in history_data if "latency" in run]
+            vrams = [run["vram"] for run in history_data if "vram" in run]
+            
+            def calculate_stats(data_list):
+                mean = sum(data_list) / len(data_list)
+                variance = sum((x - mean) ** 2 for x in data_list) / len(data_list)
+                std_dev = math.sqrt(variance)
+                return mean, std_dev
+
+            # Check 1: Latency Regression Spike Checks
+            if latencies:
+                mean_lat, std_lat = calculate_stats(latencies)
+                # If standard deviation is near zero, protect against false positives by setting a minimum window
+                threshold_lat = mean_lat + max(2 * std_lat, 5.0) 
+                if current_latency > threshold_lat:
+                    regression_alerts.append(
+                        f"⚠️ **PERFORMANCE REGRESSION:** Inference Latency spiked to **{current_latency:.1f}ms** "
+                        f"(Historical Baseline: {mean_lat:.1f}ms ± {std_lat:.1f}ms). Exceeded 2σ limit threshold."
+                    )
+
+            # Check 2: Graphics Memory Allocation Checks
+            if vrams:
+                mean_vram, std_vram = calculate_stats(vrams)
+                threshold_vram = mean_vram + max(2 * std_vram, 256.0)
+                if current_vram > threshold_vram:
+                    regression_alerts.append(
+                        f"⚠️ **RESOURCE ANOMALY:** Peak VRAM consumption reached **{current_vram:.1f}MB** "
+                        f"(Historical Baseline: {mean_vram:.1f}MB ± {std_vram:.1f}MB). Potential memory leak detected."
+                    )
+
+        # Append the current profile parameters safely to history logs
+        history_data.append({
+            "timestamp": self.timestamp,
+            "model_name": self.model_name,
+            "week": self.week,
+            "latency": current_latency,
+            "vram": current_vram,
+            "loss": self.metrics.get("loss", 0.0)
+        })
+
+        try:
+            with open(history_file, "w") as f:
+                json.dump(history_data, f, indent=4)
+        except Exception as e:
+            print(f"⚠️ Warning: Unable to save runtime profile data to history store ({e})")
+
+        return regression_alerts

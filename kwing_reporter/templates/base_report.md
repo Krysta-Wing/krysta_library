@@ -1,26 +1,29 @@
-# KRYSTA WING // WEEKLY MODEL ANALYSIS REPORT
+# KRYSTA WING // MODEL BENCHMARK REPORT
 
-## [SYSTEM METADATA]
-* **Target Model:** {{ model_name }}
-* **Evaluation Week:** Week {{ week }}
-* **Analysis Timestamp:** {{ timestamp }}
-* **Modality Profile:** {{ modality | upper }}
+## METADATA PROFILE
+* **Identifier:** {{ model_name }}
+* **Evaluation Window:** Week {{ week }}
+* **Timestamp:** {{ timestamp }}
+* **Active Modality:** {{ modality | upper }}
 
 ---
 
-## [1. COMPUTE & PERFORMANCE BENCHMARKS]
-| Metric | Observed Value | Status |
+## 1.0 COMPUTE & PERFORMANCE METRICS
+
+| Evaluation Parameter | Operational Value | Status / Threshold |
 | :--- | :--- | :--- |
-| **Inference Latency** | {{ latency }} ms / sample | {% if latency < 50 %}OPTIMAL{% else %}DEGRADED{% endif %} |
+| **Inference Latency** | {{ latency }} ms / sample | {% if latency < 50 %}NOMINAL{% else %}ATTENTION REQUIRED{% endif %} |
 | **Peak VRAM Allocation** | {{ vram }} MB | COMPLIANT |
-| **Evaluation Loss** | {{ loss }} | RECORDED |
+| **Target Loss Metrics** | {{ loss }} | RECORDED |
+
+{{ regression_alerts }}
 
 ---
 
-## [2. MODALITY INSIGHTS & ARTIFACTS]
+## 2.0 MULTI-MODAL INTERPRETABILITY ARTIFACTS
 {{ modality_specific_content }}
 
 ---
 
-## [3. SYSTEM STATUS SUMMARY]
-> **Automated Engine Verdict:** Weekly benchmarking run completed for {{ model_name }}. Evaluation artifacts have been successfully compiled and archived into the workspace directory.
+## 3.0 AUTOMATED EXECUTION SUMMARY
+> **System Verdict:** Runtime evaluation pipeline executed completely. Performance parameters and logged interpretation states have been successfully archived in the target workspace directory.
