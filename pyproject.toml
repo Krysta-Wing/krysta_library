@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "krysta-wing"
+version = "1.0.0"
+authors = [
+    { name = "Anshu Aditya" }
+]
+description = "A unified multimodal model evaluation tracking and engineering report engine."
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "jinja2>=3.0.0",
+    "matplotlib>=3.5.0",
+    "numpy>=1.20.0"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/your-username/kwing_library"
+
+[tool.setuptools]
+packages = ["kwing_reporter"]
+
+[tool.setuptools.package-data]
+"kwing_reporter" = ["templates/*.md"]
