@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: krysta-wing
-Version: 1.0.0
+Version: 1.0.1
 Summary: A unified multimodal model evaluation tracking and engineering report engine.
 Author: Anshu Aditya
 Project-URL: Homepage, https://github.com/your-username/kwing_library
@@ -12,3 +12,20 @@ Description-Content-Type: text/markdown
 Requires-Dist: jinja2>=3.0.0
 Requires-Dist: matplotlib>=3.5.0
 Requires-Dist: numpy>=1.20.0
+Requires-Dist: pyyaml>=6.0
+
+```               ┌────────────────────────────────────────┐
+                  │          KRYSTA WING ENGINE        │
+                  │        (kwing_reporter/engine.py)  │
+                  └───────────────────┬────────────────────┘
+                                    │
+            ┌─────────────────────────┼─────────────────────────┐
+            ▼                         ▼                         ▼
+ ┌─────────────────────┐   ┌─────────────────────┐   ┌─────────────────────┐
+ │   VISION MODULE   │   │     TEXT MODULE   │   │    AUDIO MODULE   │
+ │ (modalities/vision)   │  (modalities/text)│   │ (modalities/audio)│
+ └──────────┬──────────┘   └──────────┬──────────┘   └──────────┬──────────┘
+            │                         │                         │
+  • Matplotlib Rendering    • Token Confidence Pass   • Mel-Spectrogram Calc
+  • 2D Matrix Heatmaps      • Anomaly Identification  • Waveform Freq Plots
+```

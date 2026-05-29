@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "krysta-wing"
-version = "1.0.0"
+version = "1.0.1"
 authors = [
     { name = "Anshu Aditya" }
 ]
@@ -19,7 +19,8 @@ classifiers = [
 dependencies = [
     "jinja2>=3.0.0",
     "matplotlib>=3.5.0",
-    "numpy>=1.20.0"
+    "numpy>=1.20.0",
+    "pyyaml>=6.0",
 ]
 
 [project.urls]
