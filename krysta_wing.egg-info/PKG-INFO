@@ -13,6 +13,8 @@ Requires-Dist: jinja2>=3.0.0
 Requires-Dist: matplotlib>=3.5.0
 Requires-Dist: numpy>=1.20.0
 Requires-Dist: pyyaml>=6.0
+Requires-Dist: httpx>=0.27.0
+Requires-Dist: httpx-sse>=0.4.0
 
 # Krysta Wing (`krysta-wing`)
 
@@ -41,13 +43,14 @@ pip install krysta-wing
 Quick Start
 1. Define Environment Constraints
 Create a kwing_config.yaml file in your root working directory to set evaluation thresholds and report destination directories dynamically:
+
 ```python
 workspace_root: "production_reports"
 
 thresholds:
   token_confidence: 0.85
   latency_limit_ms: 50.0
-```
+
 
 2. Instrumentation Pipeline
 Integrate the telemetry tracking wrapper into your evaluation loop:
@@ -79,7 +82,7 @@ reporter.log_custom_artifact(
 
 
 reporter.compile()
-```
+
 
 
 License

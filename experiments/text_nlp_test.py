@@ -1,5 +1,5 @@
 import time
-from kwing_reporter import ModelReport
+from krysta_reporter import ModelReport
 
 print("[*] Initializing KRYSTA WING Weekly Evaluation Hub (NLP Mode)...")
 

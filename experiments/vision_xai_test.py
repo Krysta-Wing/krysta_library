@@ -1,6 +1,6 @@
 import time
 import numpy as np  # Ensure numpy is installed to create sample matrix layers
-from kwing_reporter import ModelReport
+from krysta_reporter import ModelReport
 
 print("[*] Initializing KRYSTA WING Weekly Evaluation Hub...")
 reporter = ModelReport(week=21, model_name="ResNet152-XAI", modality="vision")

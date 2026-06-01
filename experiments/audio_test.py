@@ -1,6 +1,6 @@
 import time
 import numpy as np
-from kwing_reporter import ModelReport
+from krysta_reporter import ModelReport
 
 print("[*] Initializing KRYSTA WING Weekly Evaluation Hub (Audio Mode)...")
 
