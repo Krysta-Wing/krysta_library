@@ -96,8 +96,8 @@ class ClawExecutionLifecycle:
                                 try:
                                     metrics = json.loads(frame["text"])
                                     self.duration_ms = metrics.get("duration_ms", 0)
-                                except Exception:
-                                    pass
+                                except Exception as e:
+                                    print(f"[SDK WARNING] Failed to parse metrics frame: {e}")
 
                             yield frame
 
