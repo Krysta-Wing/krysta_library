@@ -42,7 +42,33 @@ class ExecutionTrace:
         status = client.get(f"status:{job_id}") or "unknown"
         
         raw_lines = client.lrange(f"stdout:{job_id}", 0, -1) or []
-        stdout_lines = [{"type": "stdout", "text": line.strip()} for line in raw_lines]
+
+        stdout_lines = [
+           {
+              "type": "stdout",
+              "text": (
+                  line.decode("utf-8")
+                  if isinstance(line, bytes)
+                  else line
+               ).strip()
+            }
+            for line in raw_lines
+        ]
+
+        # Read persisted duration metric
+        raw_lines = client.lrange(f"stdout:{job_id}", 0, -1) or []
+
+        stdout_lines = [
+              {
+                 "type": "stdout",
+                 "text": (
+                    line.decode("utf-8")
+                    if isinstance(line, bytes)
+                    else line
+                 ).strip()
+              }
+              for line in raw_lines
+        ]
 
         duration_ms = 0
         timeout_hit = (status == "timeout")
