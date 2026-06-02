@@ -6,6 +6,7 @@ from typing import List, Dict, Optional
 
 load_dotenv(dotenv_path=".env.local")
 
+
 class ExecutionTrace:
     def __init__(
         self,
@@ -31,20 +32,34 @@ class ExecutionTrace:
         redis_token = os.getenv("UPSTASH_REDIS_REST_TOKEN")
 
         if not redis_url:
-            raise ValueError("[TRACE] Missing UPSTASH_REDIS_REST_URL environment variable.")
-        if not redis_token:
-            raise ValueError("[TRACE] Missing UPSTASH_REDIS_REST_TOKEN environment variable.")
+            raise ValueError(
+                "[TRACE] Missing UPSTASH_REDIS_REST_URL environment variable."
+            )
 
-        # ✅ Use Upstash REST client — no TCP/TLS port issues
+        if not redis_token:
+            raise ValueError(
+                "[TRACE] Missing UPSTASH_REDIS_REST_TOKEN environment variable."
+            )
+
+        # Use Upstash REST client
         client = Redis(url=redis_url, token=redis_token)
 
-        # Read the lifecycle state directly from the status key
+        # Read execution status
         status = client.get(f"status:{job_id}") or "unknown"
-        
-        raw_lines = client.lrange(f"stdout:{job_id}", 0, -1) or []
-        stdout_lines = [{"type": "stdout", "text": line.strip()} for line in raw_lines]
 
-        duration_ms = 0
+        # Read stdout logs
+        raw_lines = client.lrange(f"stdout:{job_id}", 0, -1) or []
+        stdout_lines = [
+            {"type": "stdout", "text": line.strip()}
+            for line in raw_lines
+        ]
+
+        # Read persisted duration metric
+        try:
+            duration_ms = int(client.get(f"duration:{job_id}") or 0)
+        except (TypeError, ValueError):
+            duration_ms = 0
+
         timeout_hit = (status == "timeout")
 
         if status == "done":
