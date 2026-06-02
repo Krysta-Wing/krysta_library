@@ -64,7 +64,8 @@ class ClawExecutionLifecycle:
         self.language = language
         self.code = code
         self.job_id = None
-        self.duration_ms = None  # FIX: capture metrics frame duration here
+        self.duration_ms = None
+        self._generator = None  # FIX: capture metrics frame duration here
 
     async def __aenter__(self):
         async with httpx.AsyncClient() as client:
@@ -76,10 +77,13 @@ class ClawExecutionLifecycle:
             payload = response.json()
             self.job_id = payload.get("jobId")
 
-        return self._stream_generator()
+            self._generator = self._stream_generator()
+            return self._generator
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        pass
+        if self._generator is not None:
+           await self._generator.aclose()
+           self._generator = None
 
     async def _stream_generator(self) -> AsyncGenerator[dict, None]:
         async with httpx.AsyncClient(timeout=None) as client:
