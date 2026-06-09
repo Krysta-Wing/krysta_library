@@ -3,8 +3,8 @@ requires = ["setuptools>=61.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "krysta-wing"
-version = "1.0.2"
+name = "krysta"
+version = "1.0.5"
 authors = [
     { name = "Anshu Aditya" }
 ]

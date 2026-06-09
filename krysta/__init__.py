@@ -5,14 +5,14 @@ from typing import AsyncGenerator
 from .trace import ExecutionTrace
 from .sandbox import RuleEngine
 
-class Claw:
-    """The primary public entrypoint for the Krysta Claw SDK ecosystem."""
+class Noa:
+    """The primary public entrypoint for the Krysta NoA SDK ecosystem."""
     def __init__(self, gateway_url: str = "http://localhost:3000"):
         self.gateway_url = gateway_url
         self._engine = RuleEngine()
 
     def spawn(self, language: str, code: str):
-        return ClawExecutionLifecycle(self.gateway_url, language, code)
+        return NoaExecutionLifecycle(self.gateway_url, language, code)
 
     def trace(self, job_id: str) -> ExecutionTrace:
         """
@@ -57,7 +57,7 @@ class Claw:
             raise RuntimeError("[SDK ERROR] Connection dropped before a Job ID could be securely assigned.")
 
 
-class ClawExecutionLifecycle:
+class NoaExecutionLifecycle:
     """Handles the inner stateful scope of an active streaming execution task connection."""
     def __init__(self, gateway_url: str, language: str, code: str):
         self.gateway_url = gateway_url

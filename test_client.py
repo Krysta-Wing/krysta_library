@@ -1,41 +1,67 @@
 import asyncio
-from krysta import Claw
+import json
+from krysta.noa import Noa
+
+GATEWAY_URL = "http://localhost:3000"
+
+async def test_noa_intelligence(name, code, expected_rule_result):
+    print(f"\n============================================================")
+    print(f"TESTING NOA INTEL: {name}")
+    print(f"============================================================")
+    
+    async with Noa(gateway_url=GATEWAY_URL) as claw:
+        async for event in claw.execute(language="python", code=code, timeout_ms=3000):
+            if event.get("type") == "rules":
+                print(f"[RULE EVALUATION] -> {event.get('text')}")
+            elif event.get("type") == "error":
+                print(f"[SANDBOX ERROR] -> {event.get('text')}")
+                
+    print(f"EXPECTED NOA BEHAVIOR: {expected_rule_result}")
 
 async def main():
-    # 1. Initialize the SDK pointing to your local Next.js api gateway server
-    gateway_url = "http://localhost:3000"
-    
-    # Simple python code payload to run in the sandbox
-    test_code = """
-import time
-print("SYSTEM // HELLO FROM KRYSTA PYTHON SDK")
-for i in range(3):
-    print(f"STEP // Processing batch index {i}")
-    time.sleep(1)
-print("SYSTEM // PASSING COMPLETE")
-"""
+    # 1. Testing Syntax Errors (Missing colons, bad indents)
+    await test_noa_intelligence(
+        "RAW SYNTAX FAILURE",
+        """
+def broken_function()
+    print("Missing colon after function def!")
+broken_function()
+""",
+        "ExitCodeZeroRule should FAIL. NoA must flag the syntax token crash."
+    )
 
-    print(f"[TEST] Initializing Claw client targeting {gateway_url}...")
-    
-    # 2. Enter the persistent HTTP engine connection pool context manager loop
-    async with Claw(gateway_url=gateway_url) as claw:
-        try:
-            print("[TEST] Submitting execution job block to pipeline queue...")
-            
-            # 3. Stream back logs from the worker daemon via SSE line-by-line
-            async for event in claw.execute(language="python", code=test_code, timeout_ms=8000):
-                # Clean CLI output logging
-                event_type = event.get("type", "UNKNOWN").upper()
-                text = event.get("text", "")
-                
-                if text:
-                    print(f"[{event_type}] {text}")
-                else:
-                    print(f"[{event_type}] Lifecycle frame update received.")
-                    
-        except Exception as e:
-            print(f"\n[TEST ERROR] Execution pipe crashed: {e}")
+    # 2. Testing Logic Errors (Dividing by zero)
+    await test_noa_intelligence(
+        "ZERO DIVISION ERROR",
+        """
+x = 10
+y = 0
+result = x / y
+print(result)
+""",
+        "ExitCodeZeroRule should FAIL. NoA must catch ZeroDivisionError in stderr."
+    )
+
+    # 3. Testing Infinite Loops (Watchdog timeout trigger)
+    await test_noa_intelligence(
+        "INFINITE LOOP HANG",
+        """
+import time
+print("Entering endless trap...")
+while True:
+    pass
+""",
+        "TimeoutRule should FAIL. NoA must kill the task exactly at 3000ms."
+    )
+
+    # 4. Testing Bad JSON Outputs
+    await test_noa_intelligence(
+        "INVALID JSON FORMAT STRING",
+        """
+print("{'status': operational, elements: 5}") # Single quotes & unquoted keys
+""",
+        "ValidJsonRule should FAIL. NoA must recognize this is not valid global JSON."
+    )
 
 if __name__ == "__main__":
-    # Run the async test event loop block
     asyncio.run(main())

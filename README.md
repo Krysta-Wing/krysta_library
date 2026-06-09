@@ -1,71 +1,100 @@
-# Krysta Wing (`krysta-wing`)
+# NoA Python SDK API Reference Documentation
 
-A minimalist, local telemetry and reporting engine designed to audit machine learning models, log multi-modal interpretability artifacts, and flag performance regressions locally.
-
----
-
-## Core Architecture
-
-Krysta Wing provides a lightweight alternative to heavyweight, cloud-dependent MLOps platforms. It executes entirely in your local runtime environment, tracking performance metrics across iterations and automatically identifying anomalies using moving statistical baselines ($\mu \pm 2\sigma$).
-
-### Key Capabilities
-* **Model-Agnostic Routing:** Native abstraction paths for handling spatial feature maps, attention heatmaps (e.g., Grad-CAM), and NLP token confidence streams.
-* **Statistical Regression Detection:** Automated tracking engine that runs calculations against historical baselines to intercept memory leaks or latency spikes.
-* **Configuration-Driven Portability:** Decoupled architecture managing environment settings, directory structures, and alerting boundaries via standard YAML files.
+This document provides technical reference details for the classes, methods, parameters, and streaming response objects available within the `krysta` client library.
 
 ---
 
-## Installation
+## Core Class Architecture
 
-Install the package directly from PyPI:
-
-```bash
-pip install krysta-wing
-
-Quick Start
-1. Define Environment Constraints
-Create a kwing_config.yaml file in your root working directory to set evaluation thresholds and report destination directories dynamically:
+### `NoA` Class
+The main client manager used to initialize connections and manage state lifecycle pipes with your remote execution infrastructure gateway.
 
 ```python
-workspace_root: "production_reports"
+from krysta.noa import Noa
+```
 
-thresholds:
-  token_confidence: 0.85
-  latency_limit_ms: 50.0
-
-
-2. Instrumentation Pipeline
-Integrate the telemetry tracking wrapper into your evaluation loop:
+#### Class Constructor Matrix
 ```python
+Noa(gateway_url: str)
+```
+* **Parameters:**
+  * `gateway_url` *(str, Required)*: The base HTTP/WS network address of your running NoA server cluster dashboard node (e.g., `"http://localhost:3000"`).
 
-import numpy as np
-from kwing_reporter import ModelReport
+#### Context Manager Methods
+The client class fully implements the standard asynchronous context manager layout (`__aenter__` / `__aexit__`) to automatically handle socket connections, channel allocations, and memory resource cleanups safely.
 
-reporter = ModelReport(week=22, model_name="ResNet50-XAI", modality="hybrid-omni")
+```python
+async with Noa(gateway_url="...") as client:
+    # Execution resources are automatically allocated here
+    pass
+# Connection pipes are safely destroyed here
+```
 
-# Log performance telemetry
-reporter.metrics = {
-    "latency": 14.2,   # in milliseconds
-    "vram": 3120.0,    # in Megabytes
-    "loss": 0.042
+---
+
+## Method Reference Maps
+
+### `execute()`
+Initiates an asynchronous Server-Sent Events (SSE) background task worker thread to evaluate a raw source code string.
+
+#### Method Definition Syntax
+```python
+def execute(
+    language: str, 
+    code: str, 
+    timeout_ms: int = 5000
+) -> AsyncIterator[dict]:
+```
+
+#### Input Arguments Block
+* **`language`** *(str, Required)*: The programming compilation runner target environment to spawn inside the isolated cluster node. Supported strings:
+  * `"python"`
+  * `"javascript"`
+* **`code`** *(str, Required)*: The uncompiled text string payload containing the raw source code script to evaluate inside the container pool.
+* **`timeout_ms`** *(int, Optional)*: The strict maximum allowed execution time window in milliseconds before the watchdog thread hard-kills (`SIGKILL`) the task runner. Default fallback threshold value: `5000`.
+
+#### Return Type Value
+* Returns an **`AsyncIterator[dict]`** stream generator object. You must consume this data payload frame-by-frame using an `async for` loop layout block.
+
+---
+
+## Stream Event Response Payload Schema
+
+Every data unit emitted from the async iterator returns a structured Python `dict` map object containing the following token parameters:
+
+```json
+{
+  "type": "system" | "stdout" | "stderr" | "rules" | "done" | "error",
+  "text": string | null,
+  "timestamp": integer
 }
+```
 
+### Event Parameter Types Definition Matrix
 
-tokens = ["Initiating", "attention", "map"]
-confidences = [0.94, 0.72, 0.91]
+#### 1. `type: "system"`
+Emitted immediately when the gateway server begins allocating memory allocations or scheduling task execution queues.
+* **Text Contents:** Standard tracking message flags (e.g., `"EXECUTION_STARTED"`).
 
-reporter.log_custom_artifact(
-    data=tokens,
-    artifact_type="tokens",
-    title="Layer 4 Token Confidence Pass",
-    confidences=confidences,
-    sample_phrase=" ".join(tokens)
-)
+#### 2. `type: "stdout"`
+Emitted instantly whenever the sandboxed script writes characters to the standard console system output.
+* **Text Contents:** The raw printed string text data.
 
+#### 3. `type: "stderr"`
+Emitted instantly when unhandled runtime errors, system exceptions, or line code tracebacks occur inside the isolated runner.
+* **Text Contents:** Standard multiline traceback exception information text.
 
-reporter.compile()
+#### 4. `type: "rules"`
+Emitted near task termination. Contains a serialized JSON string listing static metric quality scores and evaluation check markers.
+* **Text Contents Schema:**
+  ```json
+  "[{\"rule\": \"ExitCodeZeroRule\", \"result\": \"PASS\" | \"FAIL\", \"reason\": \"...\"}]"
+  ```
 
+#### 5. `type: "done"`
+Emitted when the execution lifecycle pipeline completes its loop naturally and closes down successfully.
+* **Text Contents:** `null`
 
-
-License
-Distributed under the MIT License. See LICENSE for details.
+#### 6. `type: "error"`
+Emitted if a network drop occurs, or if the server cannot complete an internal spawn routing operation.
+* **Text Contents:** Detailed platform failure tracking notes (e.g., `"Job failed during execution"`).

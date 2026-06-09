@@ -3,7 +3,7 @@ from httpx_sse import aconnect_sse
 import asyncio
 from typing import AsyncIterator, Optional
 
-class Claw:
+class Noa:
     def __init__(self, gateway_url: str = "http://localhost:3000"):
         """
         Initializes the Krysta Sandbox execution engine SDK client interface.
@@ -27,7 +27,7 @@ class Claw:
         an SSE live event connection to stream runtime events chunk-by-chunk.
         """
         if not self.client:
-            raise RuntimeError("Claw context manager must be entered using 'async with Claw(...) as claw:'")
+            raise RuntimeError("Noa context manager must be entered using 'async with Noa(...) as noa:'")
 
         submit_url = f"{self.gateway_url}/api/submit"
         stream_url = f"{self.gateway_url}/api/stream"
