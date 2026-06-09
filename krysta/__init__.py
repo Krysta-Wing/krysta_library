@@ -7,7 +7,7 @@ from .sandbox import RuleEngine
 
 class Noa:
     """The primary public entrypoint for the Krysta NoA SDK ecosystem."""
-    def __init__(self, gateway_url: str = "http://localhost:3000"):
+    def __init__(self, gateway_url: str = "http://localhost:3000" or "https://kwing.vercel.app/submit/api/submit"):
         self.gateway_url = gateway_url
         self._engine = RuleEngine()
 
@@ -107,3 +107,5 @@ class NoaExecutionLifecycle:
                         except Exception as e:
                             print(f"[SDK DEBUG] Failed to parse frame line: {e}")
                             continue
+
+                        
