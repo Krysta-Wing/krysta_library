@@ -1,6 +1,7 @@
 import httpx
 from httpx_sse import aconnect_sse
 import asyncio
+import json
 from typing import AsyncIterator, Optional
 
 class Noa:
@@ -21,11 +22,22 @@ class Noa:
         if self.client:
             await self.client.aclose()
 
-    async def execute(self, language: str, code: str, timeout_ms: int = 10000) -> AsyncIterator[dict]:
+    async def execute(self, language: str, code: str = None, code_path: str = None, timeout_ms: int = 10000) -> AsyncIterator[dict]:
         """
         POSTs the code execution task to the API gateway, then establishes 
         an SSE live event connection to stream runtime events chunk-by-chunk.
         """
+        if code_path and not code:
+            with open(code_path, 'r', encoding='utf-8') as f:
+                code = f.read()
+    
+        if not code:
+            raise ValueError("Either 'code' or 'code_path' must be provided")
+        
+        code_size = len(code.encode('utf-8'))
+        if code_size > 256 * 1024:
+            raise ValueError(f"Code payload exceeds 256KB limit (got {code_size} bytes)")
+        
         if not self.client:
             raise RuntimeError("Noa context manager must be entered using 'async with Noa(...) as noa:'")
 
@@ -37,6 +49,7 @@ class Noa:
             "code": code,
             "timeout_ms": timeout_ms
         }
+
 
         # 1. Dispatch code payload out to ingestion gateway
         response = await self.client.post(submit_url, json=payload)
@@ -82,3 +95,47 @@ class Noa:
             raise RuntimeError(f"Streaming telemetry channel timed out waiting for broker response. Details: {timeout_err}")
         except Exception as stream_err:
             raise RuntimeError(f"SSE Telemetry transport layer connection failed. Details: ({type(stream_err).__name__}) {stream_err}")
+        
+    
+
+#Agent execution...
+    async def test_agent(self, code_path: str, test_cases: list, language: str = "python", timeout_ms: int = 5000) -> list:
+        with open(code_path, 'r', encoding='utf-8') as f:
+            agent_code = f.read()
+
+        results = []
+        for tc in test_cases:
+            wrapper = agent_code.rstrip() + f"""
+
+import json
+try:
+    __result = {tc['input']}
+    print(json.dumps({{"status": "pass", "result": __result}}))
+except Exception as e:
+    print(json.dumps({{"status": "fail", "error": str(e)}}))
+"""
+            events = []
+            
+            async for event in self.execute(language=language, code=wrapper, timeout_ms=timeout_ms):
+                events.append(event)
+
+            stdout_lines = [e['text'] for e in events if e['type'] == 'stdout']
+            rules_event = next((e for e in events if e['type'] == 'rules'), None)
+            rules = json.loads(rules_event['text']) if rules_event else []
+
+            status = "unknown"
+            if stdout_lines:
+                try:
+                    last_output = json.loads(stdout_lines[-1])
+                    status = last_output.get("status", "unknown")
+                except Exception:
+                    status = "unparseable"
+
+            results.append({
+                "name": tc.get("name", tc['input']),
+                "status": status,
+                "stdout": stdout_lines,
+                "rules": rules,
+            })
+
+        return results
