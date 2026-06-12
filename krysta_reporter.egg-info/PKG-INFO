@@ -1,9 +1,0 @@
-Metadata-Version: 2.4
-Name: kwing_reporter
-Version: 0.1.0
-Summary: Automated weekly model analysis and XAI report compiler for Kwing.
-Requires-Python: >=3.8
-Description-Content-Type: text/markdown
-Requires-Dist: jinja2>=3.0
-Requires-Dist: torch>=2.0
-Requires-Dist: matplotlib>=3.5

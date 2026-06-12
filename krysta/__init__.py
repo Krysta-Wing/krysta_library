@@ -7,7 +7,7 @@ from .sandbox import RuleEngine
 
 class Noa:
     """The primary public entrypoint for the Krysta NoA SDK ecosystem."""
-    def __init__(self, gateway_url: str = "http://localhost:3000" or "https://kwing.vercel.app/submit/api/submit"):
+    def __init__(self, gateway_url: str = "http://localhost:3000" or "https://kwing.vercel.app/"):
         self.gateway_url = gateway_url
         self._engine = RuleEngine()
 

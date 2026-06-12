@@ -15,16 +15,18 @@ from krysta.noa import Noa
 
 #### Class Constructor Matrix
 ```python
-Noa(gateway_url: str)
+Noa()
 ```
 * **Parameters:**
-  * `gateway_url` *(str, Required)*: The base HTTP/WS network address of your running NoA server cluster dashboard node (e.g., `"http://localhost:3000"`).
+  * `gateway_url` *(str, Optional)*: The network address of your custom backend execution gateway. If omitted, the SDK connects automatically to the hosted Krysta live cloud server.
+
 
 #### Context Manager Methods
-The client class fully implements the standard asynchronous context manager layout (`__aenter__` / `__aexit__`) to automatically handle socket connections, channel allocations, and memory resource cleanups safely.
+The client class fully implements the standard asynchronous context manager layout (`__aenter__` / `__aexit__`) to automatically handle network streams, channel allocations, and memory resource cleanups safely.
 
 ```python
-async with Noa(gateway_url="...") as client:
+# Connects to the cloud automatically with zero config
+async with Noa() as client:
     # Execution resources are automatically allocated here
     pass
 # Connection pipes are safely destroyed here
@@ -65,7 +67,7 @@ Every data unit emitted from the async iterator returns a structured Python `dic
 ```json
 {
   "type": "system" | "stdout" | "stderr" | "rules" | "done" | "error",
-  "text": string | null,
+  "text": "string" | null,
   "timestamp": integer
 }
 ```

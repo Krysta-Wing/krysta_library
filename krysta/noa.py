@@ -4,7 +4,7 @@ import asyncio
 from typing import AsyncIterator, Optional
 
 class Noa:
-    def __init__(self, gateway_url: str = "http://localhost:3000"):
+    def __init__(self, gateway_url: str = "https://kwingclaw.vercel.app"):
         """
         Initializes the Krysta Sandbox execution engine SDK client interface.
         """

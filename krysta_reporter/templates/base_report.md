@@ -16,7 +16,10 @@
 | **Peak VRAM Allocation** | {{ vram }} MB | COMPLIANT |
 | **Target Loss Metrics** | {{ loss }} | RECORDED |
 
-{{ regression_alerts }}
+## Regression Alerts
+{% for alert in regression_alerts %}
+- {{ alert }}
+{% endfor %}
 
 ---
 
