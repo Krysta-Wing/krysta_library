@@ -2,7 +2,7 @@
 
 ![logo](assets/noa.png)
 
-Krysta NoA lets you execute AI-agent-generated code safely. Every run happens inside an isolated Docker container — no network access, capped memory, read-only filesystem, non-root user — with live streaming output and automatic safety checks.
+Krysta NoA lets you execute AI-agent-generated code safely. Every run happens inside an isolated Docker container no network access, capped memory, read-only filesystem, non-root user with live streaming output and automatic safety checks.
 
 ## Installation
 
@@ -86,7 +86,7 @@ async with spawn(runtime="python", session_id="agent_turn_1") as sandbox:
         print(event)
 ```
 
-Within a session, filesystem access is allowed but confined to `/workspace` inside the container — nothing outside it is reachable, and network access remains disabled regardless of session state.
+Within a session, filesystem access is allowed but confined to `/workspace` inside the container nothing outside it is reachable, and network access remains disabled regardless of session state.
 
 ### `test_agent()`
 
