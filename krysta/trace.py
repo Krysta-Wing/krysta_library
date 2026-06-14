@@ -35,7 +35,6 @@ class ExecutionTrace:
         if not redis_token:
             raise ValueError("[TRACE] Missing UPSTASH_REDIS_REST_TOKEN environment variable.")
 
-        # ✅ Use Upstash REST client — no TCP/TLS port issues
         client = Redis(url=redis_url, token=redis_token)
 
         # Read the lifecycle state directly from the status key

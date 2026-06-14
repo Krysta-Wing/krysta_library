@@ -1,4 +1,6 @@
-# NoA Python SDK API Reference Documentation
+# NoA Python SDK API
+
+![logo](noa.png)
 
 This document provides technical reference details for the classes, methods, parameters, and streaming response objects available within the `krysta` client library.
 
