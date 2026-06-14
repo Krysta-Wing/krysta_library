@@ -6,12 +6,12 @@ from google import genai
 from google.genai import types
 from google.genai.errors import APIError
 
-# 🟢 IMPORTING DIRECT FROM YOUR VERIFIED PATH
+# IMPORTING DIRECT FROM YOUR VERIFIED PATH
 try:
     from krysta.noa import Noa
-    print("SYSTEM // KWING // Live PyPI 'krysta.noa.Noa' successfully bound.")
+    print(" Live PyPI 'krysta.noa.Noa' successfully bound.")
 except ImportError as e:
-    print(f"CRITICAL // Failed to import 'Noa' from 'krysta.noa'.\nDetails: {e}")
+    print(f" Failed to import 'Noa' from 'krysta.noa'.\nDetails: {e}")
     sys.exit(1)
 
 GATEWAY_URL = "http://localhost:3000"
@@ -30,20 +30,18 @@ async def generate_with_retry(client, model, contents, config, max_retries=5, ba
         except APIError as api_err:
             if api_err.code == 503 and attempt < max_retries - 1:
                 delay = base_delay * (2 ** attempt)
-                print(f"⚠️ SYSTEM // GEMINI 503 BUSY // Retrying generation loop in {delay}s...")
+                print(f" GEMINI 503 BUSY Retrying generation loop in {delay}s...")
                 await asyncio.sleep(delay)
             else:
                 raise api_err
 
 async def run_hardcore_agent_test():
     if "GEMINI_API_KEY" not in os.environ:
-        print("CRITICAL // GEMINI_API_KEY environment variable missing.")
+        print("CRITICAL GEMINI_API_KEY environment variable missing.")
         sys.exit(1)
 
     ai_client = genai.Client()
-    print("\n============================================================")
-    print("🔥 STARTING HARDCORE AGENT SELF-CORRECTION PROFILE TEST")
-    print("============================================================\n")
+    print(" STARTING HARDCORE AGENT SELF-CORRECTION PROFILE TEST")
 
     agent_task = (
         "Write a short Python snippet that reads a mock list of strings representing numeric values: "
@@ -51,7 +49,7 @@ async def run_hardcore_agent_test():
         "without a try/catch, so that it intentionally throws a ValueError exception. Then print the final sum."
     )
     
-    print(f"🤖 AGENT // Task assigned: Injecting an intentional code break...")
+    print(f" AGENT Task assigned: Injecting an intentional code break...")
     
     try:
         response = await generate_with_retry(
@@ -65,9 +63,8 @@ async def run_hardcore_agent_test():
         if "```python" in broken_code:
             broken_code = broken_code.split("```python")[1].split("```")[0].strip()
         
-        print("\n--- INJECTED BROKEN CODE PAYLOAD ---")
+        print("\n INJECTED BROKEN CODE PAYLOAD ")
         print(broken_code)
-        print("------------------------------------\n")
 
         captured_traceback = ""
         
@@ -87,8 +84,8 @@ async def run_hardcore_agent_test():
         if not captured_traceback:
             captured_traceback = "ValueError: invalid literal for int() with base 10: 'invalid_data'"
 
-        print(f"\n🔍 PLATFORM // Captured Exception Data: {captured_traceback}")
-        print("\n⚡ PHASE 3: TRIGGERING AUTONOMOUS SELF-HEALING CORRECTION LOOP...")
+        print(f"\n PLATFORM Captured Exception Data: {captured_traceback}")
+        print("\n PHASE 3: TRIGGERING AUTONOMOUS SELF-HEALING CORRECTION LOOP...")
 
         healing_prompt = f"""
         Your previous Python script failed execution inside our secure NoA environment.
@@ -113,11 +110,10 @@ async def run_hardcore_agent_test():
         if "```python" in healed_code:
             healed_code = healed_code.split("```python")[1].split("```")[0].strip()
 
-        print("\n--- REPAIRED SELF-HEALED CODE PAYLOAD ---")
+        print("\n REPAIRED SELF-HEALED CODE PAYLOAD ")
         print(healed_code)
-        print("------------------------------------------\n")
 
-        print("🚀 PLATFORM // Dispatching healed code back to krysta-noa sandbox gateway...")
+        print(" PLATFORM Dispatching healed code back to krysta-noa sandbox gateway...")
         
         # Final pass execution stream matching exact protocol rules
         async with Noa(gateway_url=GATEWAY_URL) as claw:
@@ -125,10 +121,10 @@ async def run_hardcore_agent_test():
             async for final_frame in final_stream_generator:
                 print(f"[FINAL TELEMETRY STREAM] -> {json.dumps(final_frame)}")
 
-        print("\n🏁 HARDCORE INTEGRATION RUN SUCCESSFULLY EXECUTED NOMINAL")
+        print("\n HARDCORE INTEGRATION RUN SUCCESSFULLY EXECUTED NOMINAL")
 
     except Exception as fatal_err:
-        print(f"\n❌ CRITICAL SYSTEM FAULT DURING TEST: {str(fatal_err)}")
+        print(f"\n CRITICAL SYSTEM FAULT DURING TEST: {str(fatal_err)}")
 
 if __name__ == "__main__":
     asyncio.run(run_hardcore_agent_test())
