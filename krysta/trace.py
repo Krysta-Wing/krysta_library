@@ -46,14 +46,13 @@ class ExecutionTrace:
         duration_ms = 0
         timeout_hit = (status == "timeout")
 
-        if status == "done":
-            exit_code = 0
-        elif status == "error":
-            exit_code = 1
-        elif status == "timeout":
-            exit_code = None
-        else:
-            exit_code = None
+        try:
+          exit_code = int(client.get(f"exitcode:{job_id}") or -1)
+        except (TypeError, ValueError):
+          exit_code = -1
+
+        if status == "timeout":
+          exit_code = None
 
         return cls(
             job_id=job_id,
