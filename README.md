@@ -1,104 +1,156 @@
-# NoA Python SDK API
+# Krysta NoA — Python SDK
 
 ![logo](assets/noa.png)
 
-This document provides technical reference details for the classes, methods, parameters, and streaming response objects available within the `krysta` client library.
+Krysta NoA lets you execute AI-agent-generated code safely. Every run happens inside an isolated Docker container — no network access, capped memory, read-only filesystem, non-root user — with live streaming output and automatic safety checks.
+
+## Installation
+
+```bash
+pip install krysta
+```
+
+## Quickstart
+
+```python
+import asyncio
+from krysta.noa import Noa
+
+async def main():
+    async with Noa() as client:
+        async for event in client.execute(language="python", code="print('hello world')"):
+            print(event)
+
+asyncio.run(main())
+```
 
 ---
 
-## Core Class Architecture
+## Core concepts
 
-### `NoA` Class
-The main client manager used to initialize connections and manage state lifecycle pipes with your remote execution infrastructure gateway.
+### `Noa`
+
+The main client. Connects to the Krysta execution gateway and streams results back over SSE.
 
 ```python
 from krysta.noa import Noa
-```
 
-#### Class Constructor Matrix
-```python
-Noa()
-```
-* **Parameters:**
-  * `gateway_url` *(str, Optional)*: The network address of your custom backend execution gateway. If omitted, the SDK connects automatically to the hosted Krysta live cloud server.
-
-
-#### Context Manager Methods
-The client class fully implements the standard asynchronous context manager layout (`__aenter__` / `__aexit__`) to automatically handle network streams, channel allocations, and memory resource cleanups safely.
-
-```python
-# Connects to the cloud automatically with zero config
 async with Noa() as client:
-    # Execution resources are automatically allocated here
-    pass
-# Connection pipes are safely destroyed here
+    ...
 ```
 
----
+By default, connects to the hosted Krysta gateway. To use your own gateway (self-hosted), pass `gateway_url`:
 
-## Method Reference Maps
+```python
+async with Noa(gateway_url="https://your-gateway.example.com") as client:
+    ...
+```
 
 ### `execute()`
-Initiates an asynchronous Server-Sent Events (SSE) background task worker thread to evaluate a raw source code string.
 
-#### Method Definition Syntax
+Runs a piece of code inside the sandbox and streams events back as it runs.
+
 ```python
-def execute(
-    language: str, 
-    code: str, 
-    timeout_ms: int = 5000
-) -> AsyncIterator[dict]:
+async def execute(
+    language: str = "python",
+    code: str = None,
+    code_path: str = None,
+    timeout_ms: int = 10000,
+    session_id: str = None,
+) -> AsyncIterator[dict]
 ```
 
-#### Input Arguments Block
-* **`language`** *(str, Required)*: The programming compilation runner target environment to spawn inside the isolated cluster node. Supported strings:
-  * `"python"`
-  * `"javascript"`
-* **`code`** *(str, Required)*: The uncompiled text string payload containing the raw source code script to evaluate inside the container pool.
-* **`timeout_ms`** *(int, Optional)*: The strict maximum allowed execution time window in milliseconds before the watchdog thread hard-kills (`SIGKILL`) the task runner. Default fallback threshold value: `5000`.
+**Parameters**
 
-#### Return Type Value
-* Returns an **`AsyncIterator[dict]`** stream generator object. You must consume this data payload frame-by-frame using an `async for` loop layout block.
+- `language` — `"python"` or `"javascript"`
+- `code` — a string of source code to run
+- `code_path` — alternatively, a path to a local file whose contents will be sent and run. Max 256KB.
+- `timeout_ms` — max execution time before the process is killed (default 10000ms, max 60000ms)
+- `session_id` — if set, gives this run a persistent workspace at `/workspace` shared across calls with the same `session_id`. Without it, the sandbox is stateless and the filesystem is locked down.
+
+Either `code` or `code_path` must be provided.
+
+### `spawn()` — stateful sessions
+
+For multi-step workflows (an agent writing code, testing it, fixing it, rerunning), use `spawn()` to get a sandbox tied to a persistent session:
+
+```python
+from krysta.noa import spawn
+
+async with spawn(runtime="python", session_id="agent_turn_1") as sandbox:
+    async for event in sandbox.execute(code="with open('data.txt','w') as f: f.write('hello')"):
+        print(event)
+
+    # A later call with the same session_id can read data.txt back
+    async for event in sandbox.execute(code="with open('data.txt') as f: print(f.read())"):
+        print(event)
+```
+
+Within a session, filesystem access is allowed but confined to `/workspace` inside the container — nothing outside it is reachable, and network access remains disabled regardless of session state.
+
+### `test_agent()`
+
+Given a file containing one or more functions, run a list of test cases against it inside the sandbox:
+
+```python
+async with Noa() as client:
+    results = await client.test_agent(
+        code_path="agent_output.py",
+        test_cases=[
+            {"name": "normal case", "input": "calculate_stats([1,2,3,4,5])"},
+            {"name": "empty list", "input": "calculate_stats([])"},
+        ]
+    )
+    for r in results:
+        print(r["name"], "->", r["status"])
+```
+
+Each test case's `input` is a Python expression calling a function defined in `code_path`. Results report `"pass"` or `"fail"` per case, along with stdout and rule results.
 
 ---
 
-## Stream Event Response Payload Schema
+## Streaming events
 
-Every data unit emitted from the async iterator returns a structured Python `dict` map object containing the following token parameters:
+Every `execute()` call yields a sequence of event dicts:
 
 ```json
-{
-  "type": "system" | "stdout" | "stderr" | "rules" | "done" | "error",
-  "text": "string" | null,
-  "timestamp": integer
-}
+{"type": "system" | "stdout" | "stderr" | "rules" | "done" | "timeout" | "error", "text": "...", "timestamp": 1234567890}
 ```
 
-### Event Parameter Types Definition Matrix
+- **`system`** — lifecycle markers, e.g. `"EXECUTION_STARTED"`
+- **`stdout`** / **`stderr`** — output lines as they're produced, streamed live
+- **`rules`** — emitted once near the end; `text` is a JSON string of rule results (see below)
+- **`done`** — the run finished and exited cleanly (exit code 0)
+- **`timeout`** — the run exceeded `timeout_ms` and was killed
+- **`error`** — the run failed (non-zero exit, blocked before running, or an infrastructure error)
 
-#### 1. `type: "system"`
-Emitted immediately when the gateway server begins allocating memory allocations or scheduling task execution queues.
-* **Text Contents:** Standard tracking message flags (e.g., `"EXECUTION_STARTED"`).
+---
 
-#### 2. `type: "stdout"`
-Emitted instantly whenever the sandboxed script writes characters to the standard console system output.
-* **Text Contents:** The raw printed string text data.
+## Safety rules
 
-#### 3. `type: "stderr"`
-Emitted instantly when unhandled runtime errors, system exceptions, or line code tracebacks occur inside the isolated runner.
-* **Text Contents:** Standard multiline traceback exception information text.
+Every run is checked against a fixed set of rules. Results are returned in the `rules` event as a JSON list:
 
-#### 4. `type: "rules"`
-Emitted near task termination. Contains a serialized JSON string listing static metric quality scores and evaluation check markers.
-* **Text Contents Schema:**
-  ```json
-  "[{\"rule\": \"ExitCodeZeroRule\", \"result\": \"PASS\" | \"FAIL\", \"reason\": \"...\"}]"
-  ```
+```json
+[{"rule": "NoNetworkCallsRule", "result": "PASS", "reason": "...", "category": "security"}, ...]
+```
 
-#### 5. `type: "done"`
-Emitted when the execution lifecycle pipeline completes its loop naturally and closes down successfully.
-* **Text Contents:** `null`
+**Security rules** (these determine whether a run is safe):
 
-#### 6. `type: "error"`
-Emitted if a network drop occurs, or if the server cannot complete an internal spawn routing operation.
-* **Text Contents:** Detailed platform failure tracking notes (e.g., `"Job failed during execution"`).
+| Rule | What it checks |
+|---|---|
+| `NoNetworkCallsRule` | No outbound network calls were made or attempted |
+| `ExitCodeZeroRule` | The process exited cleanly (code 0) |
+| `MemoryLimitRule` | Memory stayed under the 128MB container limit |
+| `NoFilesystemAccessRule` | No filesystem access outside `/workspace` (or none at all, if no session) |
+
+**Optional / informational rules** (don't affect whether a run is "safe", just describe the output):
+
+| Rule | What it checks |
+|---|---|
+| `ValidJsonRule` | Whether stdout is a single valid JSON document |
+
+---
+
+## PyPI
+
+[https://pypi.org/project/krysta/](https://pypi.org/project/krysta/)

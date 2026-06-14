@@ -3,6 +3,7 @@ from httpx_sse import aconnect_sse
 import asyncio
 import json
 from typing import AsyncIterator, Optional
+import uuid
 
 class Noa:
     def __init__(self, gateway_url: str = "https://kwingclaw.vercel.app"):
@@ -22,7 +23,7 @@ class Noa:
         if self.client:
             await self.client.aclose()
 
-    async def execute(self, language: str, code: str = None, code_path: str = None, timeout_ms: int = 10000) -> AsyncIterator[dict]:
+    async def execute(self, language: str, code: str = None, code_path: str = None, timeout_ms: int = 10000, session_id: str = None) -> AsyncIterator[dict]:
         """
         POSTs the code execution task to the API gateway, then establishes 
         an SSE live event connection to stream runtime events chunk-by-chunk.
@@ -49,6 +50,9 @@ class Noa:
             "code": code,
             "timeout_ms": timeout_ms
         }
+        if session_id:
+            payload["sessionId"] = session_id
+
 
 
         # 1. Dispatch code payload out to ingestion gateway
@@ -79,14 +83,14 @@ class Noa:
         # 2. Bind directly to the live event telemetry stream bus
         params = {"jobId": job_id}
         
-        print(f"[SDK DEBUG] Establishing SSE streaming pipe connection to {stream_url}...")
+        # print(f"[SDK DEBUG] Establishing SSE streaming pipe connection to {stream_url}...")
         
         try:
             # Pass an explicit, prolonged timeout configuration payload to prevent httpx from dropping early
             timeout_config = httpx.Timeout(60.0, connect=10.0)
             
             async with aconnect_sse(self.client, "GET", stream_url, params=params, timeout=timeout_config) as event_stream:
-                print("[SDK DEBUG] SSE pipe connection link established. Awaiting daemon frames...")
+                # print("[SDK DEBUG] SSE pipe connection link established. Awaiting daemon frames...")
                 async for event in event_stream.aiter_sse():
                     # Yield decoded structured events out to user tracking script loops
                     yield event.json()
@@ -139,3 +143,42 @@ except Exception as e:
             })
 
         return results
+    
+
+
+class Sandbox:
+    def __init__(self, client, session_id, language="python"):
+        self.client = client
+        self.session_id = session_id
+        self.language = language
+
+    async def execute(self, code=None, code_path=None, language=None, timeout_ms=10000):
+        async for event in self.client.execute(
+            code=code,
+            code_path=code_path,
+            language=language or self.language,
+            timeout_ms=timeout_ms,
+            session_id=self.session_id,
+        ):
+            yield event
+
+
+def spawn(runtime="python", session_id=None, gateway_url=None):
+    sid = session_id or str(uuid.uuid4())
+    return _SpawnContext(runtime, sid, gateway_url)
+
+class _SpawnContext:
+    def __init__(self, runtime, session_id, gateway_url=None):
+        self.runtime = runtime
+        self.session_id = session_id
+        self.gateway_url = gateway_url
+        self._client = None
+
+    async def __aenter__(self):
+        self._client = Noa(gateway_url=self.gateway_url) if self.gateway_url else Noa()
+        await self._client.__aenter__()
+        return Sandbox(self._client, self.session_id, self.runtime)
+
+    async def __aexit__(self, *args):
+        await self._client.__aexit__(*args)
+
