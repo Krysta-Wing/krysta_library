@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from upstash_redis import Redis
 from typing import List, Dict, Optional
 
-load_dotenv(dotenv_path=".env.local")
+load_dotenv(dotenv_path=".env.local", override=True)
 
 class ExecutionTrace:
     def __init__(
@@ -54,22 +54,13 @@ class ExecutionTrace:
             for line in raw_lines
         ]
 
-        # Read persisted duration metric
-        raw_lines = client.lrange(f"stdout:{job_id}", 0, -1) or []
-
-        stdout_lines = [
-              {
-                 "type": "stdout",
-                 "text": (
-                    line.decode("utf-8")
-                    if isinstance(line, bytes)
-                    else line
-                 ).strip()
-              }
-              for line in raw_lines
-        ]
-
+        raw_duration = client.get(f"metrics:duration:{job_id}")
         duration_ms = 0
+        if raw_duration:
+            try:
+                duration_ms = int(raw_duration)
+            except (TypeError, ValueError):
+                pass
         timeout_hit = (status == "timeout")
 
         try:

@@ -23,7 +23,7 @@ async def run_with_display(sandbox, code=None, code_path=None, language="python"
 
 
     async for event in sandbox.execute(code=code, code_path=code_path, language=language, timeout_ms=timeout_ms):
-        # print(f"[DEBUG] etype={event['type']} text={event.get('text')}")
+        print(f"[DEBUG] etype={event['type']} text={event.get('text')}")
         etype = event["type"]
 
         if etype == "system" and event["text"] == "EXECUTION_STARTED":
@@ -42,6 +42,7 @@ async def run_with_display(sandbox, code=None, code_path=None, language="python"
 
         elif etype == "rules":
             rules_result = _json.loads(event["text"])
+            # print(f"[DEBUG RULES] parsed {len(rules_result)} rules")
 
         elif etype in ("done", "timeout", "error"):
             final_status = etype
