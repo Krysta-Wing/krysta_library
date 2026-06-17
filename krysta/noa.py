@@ -131,7 +131,20 @@ class Noa:
         return ExecutionTrace.from_redis(job_id)
 
     def validate(self, trace: ExecutionTrace) -> dict:
-        return self._engine.validate(trace)
+        result = self._engine.validate(trace)
+
+        print("\n[METRICS SUMMARY]")
+        print("______________________________")
+        print(f"Job Identifier       : {trace.job_id}")
+        print(f"Execution Duration   : {trace.duration_ms} ms")
+        print(f"Memory Allocation    :  N/A /128 MB")
+        print(f"Exit Code            : {trace.exit_code}")
+        print("______________________________")
+        
+        print("\n[SECURITY REPORT]")
+        print(json.dumps(result, indent=4))
+
+        return result
 
     def execute(self, language: str, code: str = None, code_path: str = None, timeout_ms: int = 10000, session_id: str = None):
         return ExecutionStream(self, language, code, code_path, timeout_ms, session_id)

@@ -1,6 +1,9 @@
+
+
 import json
 from typing import Tuple, Dict
 from .trace import ExecutionTrace
+
 
 class ValidationRule:
     """Abstract base class for all sandbox evaluation rules."""
@@ -9,75 +12,116 @@ class ValidationRule:
 
 
 class ExitCodeZeroRule(ValidationRule):
-    """Verifies that the sandboxed process wrapped up operations with a clean exit status."""
+    """Process must exit cleanly."""
     def evaluate(self, trace: ExecutionTrace) -> Tuple[bool, str]:
         if trace.timeout_hit:
-            return False, "Sandbox execution exceeded the allocated runtime wall clock limit."
+            return False, "Sandbox execution exceeded runtime limit"
+
         if trace.exit_code is None:
-            return False, "Process terminated abruptly without returning a valid exit status code."
+            return False, "No exit code available"
+
         if trace.exit_code != 0:
-            return False, f"Process terminated with unhandled non-zero exit status: {trace.exit_code}."
-        return True, "Process completed runtime operations cleanly with exit code 0."
+            return False, f"Process exited with code {trace.exit_code}"
+
+        return True, "Exit code clean"
 
 
 class ValidJsonRule(ValidationRule):
-    """Ensures the console stdout stream can be compiled into structured JSON metadata."""
+    """Stdout should be valid JSON (optional rule)."""
     def evaluate(self, trace: ExecutionTrace) -> Tuple[bool, str]:
-        # Collect and concatenate all stdout text chunks
-        combined_output = "".join([
-            line.get("text", "") 
-            for line in trace.stdout_lines 
-            if line.get("type") == "stdout"
-        ])
-        
-        # Strip out system lifecycle banners injected by the daemon infrastructure
-        clean_payload = combined_output.replace("SYSTEM // EXECUTION_STARTED", "").strip()
-        
+        combined_output = "".join(
+            [
+                line.get("text", "")
+                for line in trace.stdout_lines
+                if line.get("type") == "stdout"
+            ]
+        )
+
+        clean_payload = combined_output.replace(
+            "SYSTEM // EXECUTION_STARTED",
+            ""
+        ).strip()
+
         if not clean_payload:
-            return False, "Process stdout stream is completely empty. No data payload found to parse."
-        
+            return False, "Empty stdout"
+
         try:
             json.loads(clean_payload)
-            return True, "Stdout stream successfully compiled into valid structural JSON."
-        except json.JSONDecodeError as e:
-            return False, f"Malformed output layout. Failed to parse stream as structural JSON. Details: {str(e)}"
+            return True, "Valid JSON"
+        except json.JSONDecodeError:
+            return False, "Invalid JSON"
 
 
 class NoNetworkCallsRule(ValidationRule):
-    """Inspects log traces to detect unauthorized outbound socket connection attempts."""
+    """Detect outbound network activity."""
     def evaluate(self, trace: ExecutionTrace) -> Tuple[bool, str]:
-        # Check standard low-level connection trace patterns and error string indicators
         for frame in trace.stdout_lines:
             text = frame.get("text", "").lower()
-            if any(marker in text for marker in ["socket", "http", "connection refused", "urllib", "requests"]):
-                return False, f"Security sandbox violation: Rogue external network handshake detected: '{frame.get('text')}'"
-        return True, "No outbound socket or data link requests detected during script lifecycle tracking."
+
+            if any(
+                marker in text
+                for marker in [
+                    "socket",
+                    "http",
+                    "urllib",
+                    "requests",
+                    "connection refused"
+                ]
+            ):
+                return False, "Network activity detected"
+
+        return True, "No network activity"
+
+
+class MemoryLimitRule(ValidationRule):
+    """Verify memory usage remains below 128 MB."""
+    def evaluate(self, trace: ExecutionTrace) -> Tuple[bool, str]:
+        if trace.memory_used_mb > 128:
+            return False, "Memory limit exceeded"
+
+        return True, "Memory usage within limits"
+
+
+class NoFilesystemAccessRule(ValidationRule):
+    """Verify no filesystem access occurred."""
+    def evaluate(self, trace: ExecutionTrace) -> Tuple[bool, str]:
+        if trace.filesystem_access_detected:
+            return False, "Filesystem access detected"
+
+        return True, "No filesystem access detected"
 
 
 class RuleEngine:
-    """Orchestrates sequential trace assessments against the configured ruleset profile."""
+    """Runs all validation rules and produces final report."""
+
+    OPTIONAL_RULES = {
+        "ValidJsonRule"
+    }
+
     def __init__(self):
         self.rules = [
             ExitCodeZeroRule(),
             ValidJsonRule(),
-            NoNetworkCallsRule()
+            NoNetworkCallsRule(),
+            MemoryLimitRule(),
+            NoFilesystemAccessRule()
         ]
 
     def validate(self, trace: ExecutionTrace) -> Dict[str, any]:
         results = {}
         overall_passed = True
-        
+
         for rule in self.rules:
             rule_name = rule.__class__.__name__
-            passed, reason = rule.evaluate(trace)
-            if not passed:
+
+            passed, _ = rule.evaluate(trace)
+
+            # Optional rules do not affect overall status
+            if not passed and rule_name not in self.OPTIONAL_RULES:
                 overall_passed = False
-            
-            results[rule_name] = {
-                "status": "PASS" if passed else "FAIL",
-                "reason": reason
-            }
-            
+
+            results[rule_name] = "PASS" if passed else "FAIL"
+
         return {
             "passed": overall_passed,
             "results": results
