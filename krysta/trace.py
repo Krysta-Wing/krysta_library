@@ -81,7 +81,7 @@ class ExecutionTrace:
 
     def to_dict(self) -> dict:
         return {
-            "jobId": self.job_id,
+            "job_id": self.job_id,
             "duration_ms": self.duration_ms,
             "stdout_lines": self.stdout_lines,
             "exit_code": self.exit_code,

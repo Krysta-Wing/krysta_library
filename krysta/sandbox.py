@@ -69,14 +69,13 @@ class RuleEngine:
         
         for rule in self.rules:
             rule_name = rule.__class__.__name__
-            passed, reason = rule.evaluate(trace)
+            passed, _ = rule.evaluate(trace)
             if not passed:
                 overall_passed = False
             
-            results[rule_name] = {
-                "status": "PASS" if passed else "FAIL",
-                "reason": reason
-            }
+            results[rule_name] = "PASS" if passed else "FAIL"
+                
+            
             
         return {
             "passed": overall_passed,
