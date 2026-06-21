@@ -120,7 +120,9 @@ class Noa:
         self._engine = RuleEngine()
 
     async def __aenter__(self):
-        self.client = httpx.AsyncClient()
+        self.client = httpx.AsyncClient(
+            follow_redirects = True
+        )
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -214,21 +216,54 @@ class Noa:
         try:
             timeout_config = httpx.Timeout(60.0, connect=10.0)
             async with aconnect_sse(self.client, "GET", stream_url, params=params, timeout=timeout_config) as event_stream:
-                async for event in event_stream.aiter_sse():
+                async with aconnect_sse(
+                   self.client,
+                   "GET",
+                   stream_url,
+                   params=params,
+                   timeout=timeout_config
+            ) as event_stream:
+
+                 event_iterator = event_stream.aiter_sse()
+
+                while True:
+                    try:
+                        event = await asyncio.wait_for(
+                          event_iterator.__anext__(),
+                          timeout=70.0
+                        )
+                    except StopAsyncIteration:
+                        break
+                    except asyncio.TimeoutError:
+                        raise KrystaTimeoutError(
+                              "Execution stream became unresponsive. "
+                              "No telemetry received from daemon for 70 seconds."
+                        )
+
                     data = event.json()
+
                     if data.get("type") == "stdout_batch" and data.get("text"):
-                        try:
-                            for line in json.loads(data["text"]):
-                                yield {"type": "stdout", "text": line, "timestamp": data.get("timestamp")}
+                       try:
+                           for line in json.loads(data["text"]):
+                               yield {
+                                  "type": "stdout",
+                                  "text": line,
+                                  "timestamp": data.get("timestamp")
+                                }
                         except Exception:
-                            pass
+                              pass
                         continue
+
                     if data.get("type") == "metrics" and data.get("text"):
                         try:
                             metrics = json.loads(data["text"])
-                            stream_instance.duration_ms = metrics.get("duration_ms", 0)
+                            stream_instance.duration_ms = metrics.get(
+                               "duration_ms",
+                               0
+                            )
                         except Exception:
-                            pass
+                           pass
+
                     yield data
         except GeneratorExit:
             return
