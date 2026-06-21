@@ -120,7 +120,9 @@ class Noa:
         self._engine = RuleEngine()
 
     async def __aenter__(self):
-        self.client = httpx.AsyncClient()
+        self.client = httpx.AsyncClient(
+            follow_redirects = True
+        )
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
