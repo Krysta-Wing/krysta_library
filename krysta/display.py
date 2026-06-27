@@ -37,6 +37,15 @@ async def run_with_display(sandbox, code=None, code_path=None, language="python"
             print(event["text"])
             stdout_buffer.append(event["text"])
 
+        elif etype == "stdout_batch":
+            try:
+                stdout_lines = _json.loads(event["text"])
+            except Exception:
+                stdout_lines = []
+            for line in stdout_lines:
+                print(line)
+                stdout_buffer.append(line)
+
         elif etype == "stderr":
             print(event["text"])
 
